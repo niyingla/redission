@@ -57,6 +57,10 @@ abstract class PublishSubscribe<E extends PubSubEntry<E>> {
         });
     }
 
+    /**
+     *
+     * @param promise
+     */
     public void timeout(CompletableFuture<?> promise) {
         service.timeout(promise);
     }

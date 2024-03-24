@@ -105,7 +105,7 @@ public class RedissonLock extends RedissonBaseLock {
             //如果ttl == null，那么代表获取锁成功，直接返回。
             return;
         }
-
+        //订阅锁的消息 不需要立即尝试获取锁，其他线程释放锁后，会通知当前线程
         CompletableFuture<RedissonLockEntry> future = subscribe(threadId);
         pubSub.timeout(future);
         RedissonLockEntry entry;
