@@ -142,6 +142,7 @@ public class RedissonLock extends RedissonBaseLock {
                 }
             }
         } finally {
+            //释放订阅
             unsubscribe(entry, threadId);
         }
 //        get(lockAsync(leaseTime, unit));
