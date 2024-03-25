@@ -271,10 +271,12 @@ public class RedissonFairLock extends RedissonLock implements RLock {
         return evalWriteAsync(getRawName(), LongCodec.INSTANCE, RedisCommands.EVAL_BOOLEAN,
                 // remove stale threads
                 "while true do "
+                        //获取等待队列的当前线程，不存在跳过
                 + "local firstThreadId2 = redis.call('lindex', KEYS[2], 0);"
                 + "if firstThreadId2 == false then "
                     + "break;"
                 + "end; "
+                        //删除过期的线程
                 + "local timeout = tonumber(redis.call('zscore', KEYS[3], firstThreadId2));"
                 + "if timeout <= tonumber(ARGV[4]) then "
                     + "redis.call('zrem', KEYS[3], firstThreadId2); "
@@ -283,12 +285,13 @@ public class RedissonFairLock extends RedissonLock implements RLock {
                     + "break;"
                 + "end; "
               + "end;"
-                
+
+
               + "if (redis.call('exists', KEYS[1]) == 0) then " +
                         //当前锁不存在，获取等待队列的第一个线程
                     "local nextThreadId = redis.call('lindex', KEYS[2], 0); " + 
                     "if nextThreadId ~= false then " +
-                        //不为null，发布消息。
+                        //不为null，发布消息。通知其他等待线程
                         "redis.call(ARGV[5], KEYS[4] .. ':' .. nextThreadId, ARGV[1]); " +
                     "end; " +
                     "return 1; " +
@@ -297,6 +300,7 @@ public class RedissonFairLock extends RedissonLock implements RLock {
                 "if (redis.call('hexists', KEYS[1], ARGV[3]) == 0) then " +
                     "return nil;" +
                 "end; " +
+                //获取当前线程持有锁的次数
                 "local counter = redis.call('hincrby', KEYS[1], ARGV[3], -1); " +
                         //可重入次数-1
                 "if (counter > 0) then " +
@@ -305,13 +309,24 @@ public class RedissonFairLock extends RedissonLock implements RLock {
                     "return 0; " +
                 "end; " +
 
-                        //否则，删除锁
+                 //否则，删除锁
                 "redis.call('del', KEYS[1]); " +
+                //获取等待队列的第一个线程
                 "local nextThreadId = redis.call('lindex', KEYS[2], 0); " + 
                 "if nextThreadId ~= false then " +
+                        //不为null，发布消息。通知其他等待线程
                     "redis.call(ARGV[5], KEYS[4] .. ':' .. nextThreadId, ARGV[1]); " +
                 "end; " +
                 "return 1; ",
+                // KEYS[1] = 锁名称
+                // KEYS[2] = redisson_lock_queue_锁名称
+                // KEYS[3] = redisson_lock_timeout_锁名称
+                // KEYS[4] = redisson_lock_channel_锁名称
+                // ARGV[1] = 服务id + 线程id
+                // ARGV[2] = 锁过期时间
+                // ARGV[3] = 服务id + 线程id
+                // ARGV[4] = 当前时间
+                // ARGV[5] = 发布消息
                 Arrays.asList(getRawName(), threadsQueueName, timeoutSetName, getChannelName()),
                     LockPubSub.UNLOCK_MESSAGE, internalLockLeaseTime, getLockName(threadId),
                     System.currentTimeMillis(), getSubscribeService().getPublishCommand());
