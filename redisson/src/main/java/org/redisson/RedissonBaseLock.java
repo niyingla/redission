@@ -140,20 +140,22 @@ public abstract class RedissonBaseLock extends RedissonExpirable implements RLoc
                 }
                 
                 CompletionStage<Boolean> future = renewExpirationAsync(threadId);
+                //续约成功后的回调
                 future.whenComplete((res, e) -> {
                     //是否存在异常
                     if (e != null) {
                         log.error("Can't update lock {} expiration", getRawName(), e);
+                        //从续约任务中删除掉
                         EXPIRATION_RENEWAL_MAP.remove(getEntryName());
                         return;
                     }
 
                     //成功了 再次续约
                     if (res) {
-                        // reschedule itself 重新触发一次续约任务执行
+                        //reschedule itself 重新触发一次续约任务执行
                         renewExpiration();
                     } else {
-                        //如果锁不存在了，那么就删除掉任务
+                        //如果锁不存在了，那么就取消掉续约任务
                         cancelExpirationRenewal(null);
                     }
                 });

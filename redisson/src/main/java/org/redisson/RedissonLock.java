@@ -126,6 +126,7 @@ public class RedissonLock extends RedissonBaseLock {
                 // waiting for message
                 if (ttl >= 0) {
                     try {
+                        //如果锁存在，那么就等待锁的过期时间
                         entry.getLatch().tryAcquire(ttl, TimeUnit.MILLISECONDS);
                     } catch (InterruptedException e) {
                         if (interruptibly) {
@@ -258,6 +259,7 @@ public class RedissonLock extends RedissonBaseLock {
         time -= System.currentTimeMillis() - current;
         if (time <= 0) {
             //尝试获取锁失败
+            //超过等待时间，获取锁失败
             acquireFailed(waitTime, unit, threadId);
             return false;
         }
@@ -369,17 +371,23 @@ public class RedissonLock extends RedissonBaseLock {
               "if (redis.call('hexists', KEYS[1], ARGV[3]) == 0) then " +
                         "return nil;" +
                     "end; " +
+                      //是当前锁的线程，那么就进行数量-1
                     "local counter = redis.call('hincrby', KEYS[1], ARGV[3], -1); " +
+                      //如果数量大于0，设置过期时间
                     "if (counter > 0) then " +
                         "redis.call('pexpire', KEYS[1], ARGV[2]); " +
                         "return 0; " +
                     "else " +
+                      //如果数量小于等于0，那么就删除锁
                         "redis.call('del', KEYS[1]); " +
+                      //发布消息，通知其他线程
                         "redis.call(ARGV[4], KEYS[2], ARGV[1]); " +
                         "return 1; " +
                     "end; " +
                     "return nil;",
+                //KEYS[1] = 锁名称 ARGV[1] 锁过期时间 KEY[2] = 锁订阅频道
                 Arrays.asList(getRawName(), getChannelName()),
+                //ARGV[1] = 0 ARGV[2] = leaseTime ARGV[3] = 线程id= 服务id + ":" + threadId; ARGV[4] = 发布消息，redis的pub命令
                 LockPubSub.UNLOCK_MESSAGE, internalLockLeaseTime, getLockName(threadId), getSubscribeService().getPublishCommand());
     }
 
