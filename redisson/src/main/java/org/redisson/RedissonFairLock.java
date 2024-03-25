@@ -195,7 +195,7 @@ public class RedissonFairLock extends RedissonLock implements RLock {
                         //获取等待队列里面的所有线程，然后遍历，减少超时时间
                         "local keys = redis.call('zrange', KEYS[3], 0, -1);" +
                         "for i = 1, #keys, 1 do " +
-                            //todo
+                            //减少超时时间
                             "redis.call('zincrby', KEYS[3], -tonumber(ARGV[3]), keys[i]);" +
                         "end;" +
 
