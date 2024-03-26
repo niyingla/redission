@@ -27,6 +27,7 @@ import java.util.concurrent.locks.Condition;
 
 /**
  * Groups multiple independent locks and manages them as one lock.
+ * 多个独立锁组合在一起 作为一个锁管理
  *
  * @author Nikita Koksharov
  *
@@ -249,6 +250,7 @@ public class RedissonMultiLock implements RLock {
             }
 
             if (tryLock(waitTime, leaseTime, TimeUnit.MILLISECONDS)) {
+                //返回true 才跳出循环
                 return;
             }
         }
@@ -290,7 +292,11 @@ public class RedissonMultiLock implements RLock {
     public boolean tryLock(long waitTime, TimeUnit unit) throws InterruptedException {
         return tryLock(waitTime, -1, unit);
     }
-    
+
+    /**
+     * 不同锁的不同实现
+     * @return
+     */
     protected int failedLocksLimit() {
         return 0;
     }
@@ -317,7 +323,7 @@ public class RedissonMultiLock implements RLock {
             remainTime = unit.toMillis(waitTime);
         }
         long lockWaitTime = calcLockWaitTime(remainTime);
-        
+        //允许失败锁数量
         int failedLocksLimit = failedLocksLimit();
         List<RLock> acquiredLocks = new ArrayList<>(locks.size());
         for (ListIterator<RLock> iterator = locks.listIterator(); iterator.hasNext();) {
@@ -331,35 +337,44 @@ public class RedissonMultiLock implements RLock {
                     lockAcquired = lock.tryLock(awaitTime, newLeaseTime, TimeUnit.MILLISECONDS);
                 }
             } catch (RedisResponseTimeoutException e) {
+                //释放失败的当前锁
                 unlockInner(Arrays.asList(lock));
                 lockAcquired = false;
             } catch (Exception e) {
                 lockAcquired = false;
             }
-            
+
             if (lockAcquired) {
+                //加锁成功，加入成功集合
                 acquiredLocks.add(lock);
             } else {
+                //判断获取锁的数量 是否已经符合要求
+                //锁总数 - 成功锁数 == 允许失败锁数
                 if (locks.size() - acquiredLocks.size() == failedLocksLimit()) {
                     break;
                 }
 
                 if (failedLocksLimit == 0) {
+                    //有一把锁加锁失败 就释放所有已经成功的锁
                     unlockInner(acquiredLocks);
+                    //判断超时时间
                     if (waitTime <= 0) {
                         return false;
                     }
                     failedLocksLimit = failedLocksLimit();
+                    //清空成功集合
                     acquiredLocks.clear();
-                    // reset iterator
+                    // reset iterator 迭代器回滚 全部重新获取
                     while (iterator.hasPrevious()) {
                         iterator.previous();
                     }
                 } else {
+                    //失败了 减去允许失败的值
                     failedLocksLimit--;
                 }
             }
-            
+
+            //判断剩余时间
             if (remainTime > 0) {
                 remainTime -= System.currentTimeMillis() - time;
                 time = System.currentTimeMillis();

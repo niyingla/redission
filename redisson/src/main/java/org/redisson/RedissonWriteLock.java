@@ -84,7 +84,7 @@ public class RedissonWriteLock extends RedissonLock implements RLock {
                         //比如说线程A加写锁，线程A再来加写锁，可以重入，只要加了写锁，就代表别的线程肯定加不了锁了，那本线程想重新加写锁也好，加读锁也好，都不限制
                         //比如说线程A加读锁，线程A再来加写锁，互斥，加锁不成功，只要加了读锁，后面再想加写锁就加不了了，因为读读不互斥，可能好几个线程都加了读锁，没办法加写锁的时候判断是不是应该加写锁
                         //KEYS[1]=锁名称
-                        //ARGV[1]=锁过期时间 ARGV[2]=serverId + threadId
+                        //ARGV[1]=锁过期时间 ARGV[2]=serverId + threadId +:write
                         Arrays.<Object>asList(getRawName()),
                         unit.toMillis(leaseTime), getLockName(threadId));
     }

@@ -268,7 +268,9 @@ public class RedissonSemaphore extends RedissonExpirable implements RSemaphore {
     private RFuture<Boolean> tryAcquireAsync0(int permits) {
         return commandExecutor.syncedEval(getRawName(), LongCodec.INSTANCE, RedisCommands.EVAL_BOOLEAN,
                   "local value = redis.call('get', KEYS[1]); " +
+                          //如果value不存在，那么就设置value=0 且 数量足够
                   "if (value ~= false and tonumber(value) >= tonumber(ARGV[1])) then " +
+                          //数量足够，那么就减去
                       "local val = redis.call('decrby', KEYS[1], ARGV[1]); " +
                       "return 1; " +
                   "end; " +

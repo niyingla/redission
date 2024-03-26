@@ -58,7 +58,7 @@ public class RedissonReadLock extends RedissonLock implements RLock {
     @Override
     <T> RFuture<T> tryLockInnerAsync(long waitTime, long leaseTime, TimeUnit unit, long threadId, RedisStrictCommand<T> command) {
         return commandExecutor.syncedEval(getRawName(), LongCodec.INSTANCE, command,
-                                //获取锁的mode值
+                                //获取锁的mode值（读锁还是写锁 read或者write）
                                 "local mode = redis.call('hget', KEYS[1], 'mode'); " +
                                        //如果mode不存在
                                 "if (mode == false) then " +
@@ -131,7 +131,7 @@ public class RedissonReadLock extends RedissonLock implements RLock {
                         //删除{lockName}:serverId:threadId:rwlock_timeout：重入次数 key，也就是删除表示第几次加锁的一个key，这个key主要用来记录超时时间
                 "redis.call('del', KEYS[3] .. ':' .. (counter+1)); " +
 
-                        //如果当前锁还被其他线程持有着。
+                        //如果当前锁还被其他线程持有着。  =1 相当于hset里面只有mode了
                 "if (redis.call('hlen', KEYS[1]) > 1) then " +
                     "local maxRemainTime = -3; " +
                         //拿到里面所有的key也就是线程id

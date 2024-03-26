@@ -166,7 +166,8 @@ public class RedissonMultiLockTest {
         RLock lock2 = redissonClient.getLock("lock2");
         RLock lock3 = redissonClient.getLock("lock3");
         RedissonMultiLock multiLock = new RedissonMultiLock(lock1, lock2, lock3);
-        boolean b = multiLock.tryLock();
+        multiLock.lock();
+        boolean tryLock = multiLock.tryLock();
         multiLock.unlock();
     }
 }
